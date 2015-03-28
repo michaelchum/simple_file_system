@@ -183,6 +183,6 @@ static struct fuse_operations xmp_oper = {
 int main(int argc, char *argv[])
 {
     mksfs(1);
-    
-    return fuse_main(argc, argv, &xmp_oper, NULL);
+    return 0;
+    // return fuse_main(argc, argv, &xmp_oper, NULL);
 }

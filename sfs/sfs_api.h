@@ -29,7 +29,7 @@ typedef struct{
     char file_name[MAXFILENAME+MAXFILEEXTENSION];
     char name[MAXFILENAME];
     char extension[MAXFILEEXTENSION];
-} dir;
+} directory;
 
 typedef struct{
     int opened;
