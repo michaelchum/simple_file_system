@@ -1,7 +1,7 @@
 #define MAXFILENAME 20
 #define MAXFILEEXTENSION 3
 #define BLOCK_SIZE 512 // bytes
-#define NUM_BLOCKS 2048 
+#define NUM_BLOCKS 4096 
 #define NUM_INODES 100
 #define NUM_INODE_POINTERS 13 // 12 data blocks pointers, 1 single indirect pointer
 #define MAX_NUM_FILES 99
@@ -12,7 +12,7 @@ typedef struct {
     int block_size; // # of bytes 
     int file_system_size; // # of blocks
     int inode_table_length; // # of blocks
-    int root_directory; // ID of the inode pointing to root directory
+    int root_dir; // ID of the inode pointing to root directory
 } super_block;
 
 typedef struct {
@@ -23,6 +23,18 @@ typedef struct {
     int size;
     int pointers[NUM_INODE_POINTERS];
 } inode;
+
+typedef struct{
+    int inode_id;
+    char file_name[MAXFILENAME+MAXFILEEXTENSION];
+    char name[MAXFILENAME];
+    char extension[MAXFILEEXTENSION];
+} dir;
+
+typedef struct{
+    int opened;
+    int rw_ptr;
+} file_descriptor;
 
 // API Declaration
 
