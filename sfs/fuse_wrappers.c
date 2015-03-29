@@ -183,6 +183,17 @@ static struct fuse_operations xmp_oper = {
 int main(int argc, char *argv[])
 {
     mksfs(1);
+    // // Testing sfs_fopen() and sfs_fclose()
+    // int index = sfs_fopen("Hello.txt");
+    // int index2 = sfs_fopen("Hello2.txt");
+    // int index3 = sfs_fopen("Hello3.txt");
+    // sfs_fclose(index);
+    // sfs_fclose(index2);
+    // int new_index2 = sfs_fopen("Hello2.txt");
+    // int new_index = sfs_fopen("Hello.txt");
+    // sfs_fclose(new_index);
+    // sfs_fclose(new_index2);
+    
     return 0;
     // return fuse_main(argc, argv, &xmp_oper, NULL);
 }
