@@ -9,7 +9,7 @@ unsigned char free_bitmap[BLOCK_SIZE];
 file_descriptor fd_table[MAX_NUM_FILES];
 file_meta root_dir_table[MAX_NUM_FILES]; // 2560 Bytes
 
-int cur_dir_address;
+int cur_address;
 
 int mksfs(int fresh) {
 
@@ -22,21 +22,21 @@ int mksfs(int fresh) {
     unsigned char dir_buffer[12 * BLOCK_SIZE];
     memset(dir_buffer, 0, sizeof(dir_buffer));
 
-    printf("int size %lu\n", sizeof(int));
-    printf("unsigned char size %lu\n", sizeof(unsigned char));
-    printf("char size %lu\n\n", sizeof(char));
+    // printf("int size %lu\n", sizeof(int));
+    // printf("unsigned char size %lu\n", sizeof(unsigned char));
+    // printf("char size %lu\n\n", sizeof(char));
 
-    printf("Super block size %lu\n", sizeof(super_block));
-    printf("I-node size %lu\n", sizeof(inode));
-    printf("I-node table size %lu\n", sizeof(inode_table));
-    printf("Free bitmap size %lu\n", sizeof(free_bitmap));
-    printf("File meta size %lu\n\n", sizeof(file_meta));
-    printf("FD table size %lu\n", sizeof(fd_table));
-    printf("Root dir size %lu\n\n", sizeof(root_dir_table));
+    // printf("Super block size %lu\n", sizeof(super_block));
+    // printf("I-node size %lu\n", sizeof(inode));
+    // printf("I-node table size %lu\n", sizeof(inode_table));
+    // printf("Free bitmap size %lu\n", sizeof(free_bitmap));
+    // printf("File meta size %lu\n\n", sizeof(file_meta));
+    // printf("FD table size %lu\n", sizeof(fd_table));
+    // printf("Root dir size %lu\n\n", sizeof(root_dir_table));
 
-    printf("Super block buffer size %lu\n", sizeof(super_block_buffer));
-    printf("I-node table buffer size %lu\n", sizeof(inode_table_buffer));
-    printf("Dir buffer size %lu\n", sizeof(dir_buffer));
+    // printf("Super block buffer size %lu\n", sizeof(super_block_buffer));
+    // printf("I-node table buffer size %lu\n", sizeof(inode_table_buffer));
+    // printf("Dir buffer size %lu\n", sizeof(dir_buffer));
 
     if (fresh) {
         init_fresh_disk("FILESYSTEM", BLOCK_SIZE, NUM_BLOCKS);
@@ -57,11 +57,11 @@ int mksfs(int fresh) {
 
         // Initialize root i-node
         inode root_inode = {
-            .mode=0766, 
-            .link_count=1,
-            .uid=0,
-            .gid=0,
-            .size=0,
+            .mode = 0766, 
+            .link_count = 1, // # of hard links stays at 1 for this assignment
+            .uid = 0,
+            .gid = 0,
+            .size = 0,
             .pointers={17,18,19,20,21,22,23,24,25,26,27,28,0}
         };
         // Set inode table to Os
@@ -85,8 +85,8 @@ int mksfs(int fresh) {
         free_bitmap[0] = 0b11111111; // block 0 = super_block, block 1-7 = inode_table
         free_bitmap[1] = 0b11111111; // block 8-15 = inode_table
         free_bitmap[2] = 0b11111111; // block 16 = inode_table, block 17-23 = root_dir_table
-        free_bitmap[3] = 0b11111000; // block 24-28 = root_dir_table
-        free_bitmap[BLOCK_SIZE-1] = 0b00000001; // last block = free_bitmap
+        free_bitmap[3] = 0b00011111; // block 24-28 = root_dir_table
+        free_bitmap[BLOCK_SIZE-1] = 0b10000000; // last block = free_bitmap
         // Write free space bitmap to disk
         write_blocks(NUM_BLOCKS-1, 1, free_bitmap);
 
@@ -131,7 +131,7 @@ int mksfs(int fresh) {
     memset(fd_table, 0, sizeof(fd_table));
 
     // Set dir pointer to root dir
-    cur_dir_address = 0;
+    cur_address = 0;
 
     return 0;
 }
@@ -249,17 +249,19 @@ int sfs_fopen(char *name) {
     memcpy((void *)dir_buffer, (const void *)&root_dir_table, sizeof(root_dir_table));
     write_blocks(17, 12, dir_buffer);
 
+    // Load to fd memory
+    fd_table[new_file_index].opened = 1;
+
     printf("Created on root dir index %i\n", new_file_index);
 
     // Return the index of the file
     return new_file_index;
 }
 
-int sfs_fclose(int file_index) {
-
-    if (fd_table[file_index].opened == 1) {
-        fd_table[file_index].opened = 0;
-        printf("Closed root dir index %i\n", file_index);
+int sfs_fclose(int fileID) {
+    if (fd_table[fileID].opened == 1) {
+        fd_table[fileID].opened = 0;
+        printf("Closed root dir index %i\n", fileID);
     }
 
     return 0;
@@ -267,17 +269,175 @@ int sfs_fclose(int file_index) {
 
 int find_free_block() {
 
+    // Loop through free_bitmap to find an empty block
+    int i;
+    for (i = 0; i < BLOCK_SIZE; i++) {
+        if (free_bitmap[i] == 0b11111111) {
+            continue;
+        } else if ((free_bitmap[i] & 0b00000001) == 0) {
+            free_bitmap[i] = free_bitmap[i] | 0b00000001;
+            return i * 8 + 1;
+        } else if ((free_bitmap[i] & 0b00000010) == 0) {
+            free_bitmap[i] = free_bitmap[i] | 0b00000010;
+            return i * 8 + 2;
+        } else if ((free_bitmap[i] & 0b00000100) == 0) {
+            free_bitmap[i] = free_bitmap[i] | 0b00000100;
+            return i * 8 + 3;
+        } else if ((free_bitmap[i] & 0b00001000) == 0) {
+            free_bitmap[i] = free_bitmap[i] | 0b00001000;
+            return i * 8 + 4;
+        } else if ((free_bitmap[i] & 0b00010000) == 0) {
+            free_bitmap[i] = free_bitmap[i] | 0b00010000;
+            return i * 8 + 5;
+        } else if ((free_bitmap[i] & 0b00100000) == 0) {
+            free_bitmap[i] = free_bitmap[i] | 0b00100000;
+            return i * 8 + 6;
+        } else if ((free_bitmap[i] & 0b01000000) == 0) {
+            free_bitmap[i] = free_bitmap[i] | 0b01000000;
+            return i * 8 + 7;
+        } else if ((free_bitmap[i] & 0b10000000) == 0) {
+            free_bitmap[i] = free_bitmap[i] | 0b10000000;
+            return i * 8 + 8;
+        }
+    }
+
+    printf("No free blocks available, disk is full\n");
+    return 0;
 }
 
 int sfs_fwrite(int fileID, const char *buf, int length) {
+
+    if (length < 0) {
+        return -1; // error
+    }
+
+    unsigned char data_block_buffer[BLOCK_SIZE];
+    inode file_inode = inode_table[root_dir_table[fileID].inode_index];
+    cur_address = fd_table[fileID].rw_ptr;
+
+    // If the file is empty
+    if (file_inode.pointers[0] == 0) {
+        printf("Writing to empty file\n");
+        memset(data_block_buffer, 0, sizeof(data_block_buffer));
+        int num_blocks_to_write = length/BLOCK_SIZE;
+        int free_block_index;
+        // Only one block required
+        if (num_blocks_to_write == 0) {
+            free_block_index = find_free_block();
+            memcpy((void *)&data_block_buffer, (const void*)buf, length);
+            write_blocks(free_block_index, 1, data_block_buffer);
+            inode_table[root_dir_table[fileID].inode_index].pointers[0] = free_block_index;
+        // Multiple blocks required
+        } else {
+            // Check if last block is full if not, an extra block is required
+            if ((length % BLOCK_SIZE) > 0) {
+                num_blocks_to_write++;
+            }
+
+            int blocks_to_write_table[num_blocks_to_write];
+            int free_block_index, i, j;
+            int length_to_write, remaining_bytes;
+
+            remaining_bytes = length;
+            
+            // Find all free blocks and store indexes in blocks_to_write_table array 
+            for (i = 0; i < num_blocks_to_write; i++) {
+                free_block_index = find_free_block();
+                blocks_to_write_table[i] = free_block_index;
+                inode_table[root_dir_table[fileID].inode_index].pointers[i] = blocks_to_write_table[i];
+            }
+
+            for (j = 0; j < num_blocks_to_write; j++) {
+                length_to_write = remaining_bytes/BLOCK_SIZE;
+                // Write a full block
+                if (length_to_write != 0) {
+                    memcpy((void *)&data_block_buffer, (const void *)(buf+(sizeof(data_block_buffer))*j), sizeof(data_block_buffer)); 
+                    write_blocks(blocks_to_write_table[j], 1, data_block_buffer);
+                    remaining_bytes = remaining_bytes - BLOCK_SIZE;
+                // Write a partial block (last one)
+                } else {
+                    memcpy((void *)&data_block_buffer, (const void *)(buf+(sizeof(data_block_buffer))*j), remaining_bytes); 
+                    write_blocks(blocks_to_write_table[j], 1, data_block_buffer);
+                }
+                // Reset buffer
+                memset(data_block_buffer, 0, sizeof(data_block_buffer));
+            }
+        }
+
+    // File is not empty
+    } else {
+        printf("Writing to non-empty file\n");
+        // Load the current last block into buffer to finish up filing this block
+        int start_block = 0;
+        int start_block_index =0;
+
+        // Check if the current_position lie inside one of the inode's data blocks
+        int j;
+        for (j = 0; j < NUM_INODE_POINTERS-1; j++){
+            if ( cur_address >= file_inode.pointers[j-1] * BLOCK_SIZE && cur_address <= file_inode.pointers[j] * BLOCK_SIZE) {
+                start_block = file_inode.pointers[j];
+                start_block_index = j;
+                break;
+            }
+        }   
+
+        if (start_block == 0) {
+            //The pointer does not lie inside the file
+            // printf("Pointer does not lie inside the file. Use fseek() to point the current address to inside the file\n");
+            return -1;
+        }
+
+        int rw_offset_from_start_block = cur_address - (start_block-1)*BLOCK_SIZE;
+
+        // Write the partial block
+        if ((rw_offset_from_start_block + length) < BLOCK_SIZE) {
+            memset(data_block_buffer, 0, sizeof(data_block_buffer));
+            read_blocks(start_block, 1, data_block_buffer);
+            memcpy((void *)&data_block_buffer[rw_offset_from_start_block], (const void *)buf, length); 
+            write_blocks(start_block, 1, data_block_buffer);
+        } else {
+            // Write more than one block ...
+        }
+
+    }
+
+    // Write the inode_table back to the disk
+    unsigned char inode_table_buffer[16 * BLOCK_SIZE]; 
+    memset(inode_table_buffer, 0, sizeof(inode_table_buffer));     
+    memcpy((void *)inode_table_buffer, (const void *) &inode_table, sizeof(inode_table));      
+    write_blocks(1, 16, inode_table_buffer);
+
+    // Write updated free_bitmap to disk
+    write_blocks(NUM_BLOCKS-1, 1, free_bitmap);        
+
     return 0;
 }
 
 int sfs_fread(int fileID, char *buf, int length) {
+
+    int num_blocks_to_read = length/BLOCK_SIZE;
+    int inode_index = root_dir_table[fileID].inode_index;
+    inode file_inode = inode_table[inode_index];
+
+    unsigned char data_block_buffer[(NUM_INODE_POINTERS-1) * BLOCK_SIZE];
+    memset(data_block_buffer, 0, sizeof(data_block_buffer));
+
+    int i;
+    for (i = 0; i < num_blocks_to_read; i++) {
+        if (file_inode.pointers[i] == 0){
+            // No data found
+            return -1;
+        }
+        read_blocks(file_inode.pointers[i], 1, data_block_buffer + i * BLOCK_SIZE);
+    }
+    // Copy into buffer
+    memcpy(buf, data_block_buffer, length);
     return 0;
 }
 
 int sfs_fseek(int fileID, int offset) {
+
+    fd_table[fileID].rw_ptr = offset;
     return 0;
 }
 
@@ -290,11 +450,53 @@ int sfs_get_next_filename(char* filename) {
 }
 
 int sfs_GetFileSize(const char* path) {
-    return 0;
-}
+    char *base = (char *)path;
+    int i, index;
+    for (i = 0;i < MAX_NUM_FILES;i++) {
+        if (strncmp(root_dir_table[i].file_name, base, MAXFILENAME) == 0) {
+            index = root_dir_table[i].inode_index;
+        }
+    }
+    int filesize;
 
-// int main(int argc, char const *argv[]) {
-//     /* code */
-//     mksfs(1);
-//     return 0;
-// }
+    inode file_inode = inode_table[index];
+
+    int num_data_blocks;
+    num_data_blocks = 0;
+    int j;
+    for (j = 0; j < NUM_INODE_POINTERS-1; j++) {
+        if(file_inode.pointers[j]!=0){
+            num_data_blocks++;
+        }
+    }
+
+    int pointers_list[num_data_blocks];
+
+    int k;
+    for (k = 0; k < num_data_blocks; k++) {
+        if(file_inode.pointers[k]!=0){
+            pointers_list[k] = file_inode.pointers[k];
+        }
+    }
+
+    int last_block = pointers_list[num_data_blocks-1];
+    int full_blocks = num_data_blocks - 1;
+
+    unsigned char buffer[BLOCK_SIZE];
+
+    read_blocks(last_block,1,buffer);
+
+    int buf_pointer = BLOCK_SIZE -1;
+
+    while(buffer[buf_pointer]==0){
+        buf_pointer--; 
+    }
+
+    buf_pointer++; 
+
+    filesize = buf_pointer + full_blocks * BLOCK_SIZE;
+
+    inode_table[index].size = filesize;
+
+    return filesize;
+}
