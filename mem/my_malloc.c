@@ -5,7 +5,7 @@
 
 int current_policy = FIRST_FIT; // default policy FIRST_FIT
 int bytes_allocated = 0;
-const int buffer_size = 1024; // 128 byte = 1024 bit
+const int buffer_size = 10240000; // 128 KBytes = 1,024,000 bits
 const int block_size = 8*sizeof(block); // size of the header block struct in bit
 block *free_list_head;
 
@@ -140,20 +140,90 @@ void *my_malloc(int size_byte) {
     return new_data_block->free_data;
 }
 
-void my_free(void *ptr) {
+// Takes a pointer to a block previously allocated by my_malloc() and deallocate it.
+
+void my_free(void *input_ptr) {
     // If input is NULL, should not free anything
-    if (ptr == NULL) {
+    if (input_ptr == NULL) {
         return;
+    }
+    // Note that ptr currently points to the data_block
+    // Point it to the header_block
+    input_ptr = (void *)(input_ptr - block_size);
+
+    block *ptr = (block *)input_ptr;
+    int bytes_deallocated = ptr->length/8;
+
+    printf("Deallocating %i bytes...\n", bytes_deallocated);
+
+    int prev_free = 0;
+    int next_free = 0;
+
+    // Check if previous block is free
+    // Iterate through free_list and check if the physical prev block is actually a free block
+    block *physical_prev_block = free_list_head;
+    void *next_to_free = NULL;
+    while (physical_prev_block != NULL) {
+        next_to_free = (void *)(physical_prev_block->free_data + physical_prev_block->length);
+        if (next_to_free == ptr) {
+            prev_free = 1;
+            break;
+        }
+        physical_prev_block = physical_prev_block->next_block;
+    }
+
+    // Check if next block is free
+    // A ptr->next_block ALWAYS point to the next free block according to our my_malloc() implementation
+    // So if the physical next block is the same as ptr->next_block, the next block is indeed free
+    block *physical_next_block = (void *)(ptr->free_data + ptr->length);
+    if (ptr->next_block == physical_next_block) {
+        next_free = 1;
+    }
+
+    // Both sides free, merge
+    if (prev_free && next_free) {
+        printf("Both prev and next block are free, merge!\n");
+        // Calculate the new length
+        int new_length = physical_prev_block->length + 2*block_size + ptr->length + physical_next_block->length;
+        physical_prev_block->length = new_length;
+        // Point the prev block's next pointer to the next block's next pointer which is always a free block
+        physical_prev_block->next_block = physical_next_block->next_block;
+    // Previous block free, merge
+    } else if (prev_free) {
+        printf("Only prev block is free, merge!\n");
+        // Calculate the new length
+        int new_length = physical_prev_block->length + block_size + ptr->length;
+        physical_prev_block->length = new_length;
+        // Point the prev block's next pointer to the current block's next block which is always a free block
+        physical_prev_block->next_block = ptr->next_block;
+    // Next block free, merge
+    } else if (next_free) {
+        printf("Only next block is free, merge!\n");
+
+        // Check if we need to move free_list_head
+
+    // No neighbors free, need to connect free_list
+    } else {
+        printf("No neighbors free\n");
+
+        // Check if we need to move free_list_head
     }
 
 }
 
 void my_mallinfo() {
+
+
     // Total bytes allocated
 
     // Largest contiguous free block
 
     // Total free space
+
+    printf("\n*** Memory Allocation Info ***\n");
+    printf("Allocated                \t%i Bytes\n", bytes_allocated);
+    printf("Free space               \t%i Bytes\n", bytes_allocated);
+    printf("Largest Contiguous block \t%i Bytes\n\n", bytes_allocated);
 }
 
 
