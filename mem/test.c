@@ -8,8 +8,11 @@ int main(int argc, char *argv[]) {
     // printf("*head size %lu\n", sizeof(head));
     // printf("int size %lu\n", sizeof(int));
 
-    void* new_data_ptr = my_malloc(1000);
-    printf("%td\n", new_data_ptr);
+    void* new_data_ptr = my_malloc(96);
+    printf("Free data 1 pointed at %td\n", new_data_ptr);
+	
+	// void* new_data_ptr2 = my_malloc(1000);
+ //    printf("Free data 2 pointed at %td\n", new_data_ptr2);
 
     // block block1 = { 0, NULL, NULL, NULL };
     // block block2 = { 0, NULL, NULL, NULL };
