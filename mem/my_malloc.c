@@ -60,8 +60,6 @@ void my_mallopt(int policy) {
 }
 
 void *my_malloc(int size_byte) {
-    // Store beginning of memory
-    start = sbrk(0);
     // Convert size into bits
     int size_bit = 8*size_byte;
     printf("my_malloc() is trying to allocate %i bit...\n", size_bit);
@@ -69,7 +67,9 @@ void *my_malloc(int size_byte) {
     if (free_list_head == NULL) {
         printf("No free_list_head found, initializing free_list...\n");
         // Set the initial program break
-        free_list_head = sbrk(0);
+        free_list_head = sbrk(0); // IMPORTANT sbrk() on Ubuntu doesn't behave the same as sbrk() on OS X
+        // Store beginning of memory
+        start = free_list_head;
         brk((void *)free_list_head + block_size + buffer_size);
         // Create first block
         *free_list_head = (block){ 0, NULL, NULL, NULL };
@@ -233,7 +233,7 @@ void my_free(void *input_ptr) {
         }
         while (redir < ptr) {
             redir->next_block = ptr;
-            redir = (void *)(redir->free_data + redir->length);
+            redir = (void *)redir->free_data + redir->length;
         }
 
         // Check if we need to move free_list_head
@@ -254,21 +254,40 @@ void my_free(void *input_ptr) {
             itr = itr->next_block;
         }
 
-        // If prev free_block not found, this should be the new free_list_head!
+        // REDIRECTION Make sure all blocks between physical_prev_block to ptr, point to ptr
+        block *redir;
+        // If all prev blocks are data blocks
         if (free_list_head > ptr) {
-            free_list_head = ptr;
-        // If prev free_block found
+            redir = (block *)start;
+        // If prev free block is existant
         } else {
-            // Point the prev free block's to this block
-            physical_prev_block->next_block = ptr;
+            redir = physical_prev_block;
+        }
+        while (redir < ptr) {
+            redir->next_block = ptr;
+            redir = (void *)redir->free_data + redir->length;
+        }
+
+        // Check if we need to move free_list_head
+        if (free_list_head > ptr) {
+            ptr->next_block = free_list_head;
+            free_list_head = ptr;
         }
     }
 
-
+    // CHECK whether the last block is larger than 128KBytes and shrink
+    block *last_block = free_list_head;
+    // Go to the last block of the free_list
+    while (last_block->next_block != NULL) {
+        last_block = last_block->next_block;
+    }
+    if (last_block->length > buffer_size) {
+        last_block->length = buffer_size;
+        brk((void*)last_block->free_data + buffer_size);
+    }
 }
 
 void my_mallinfo() {
-
 
     // Total bytes allocated
 

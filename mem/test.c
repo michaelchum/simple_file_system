@@ -9,20 +9,14 @@ int main(int argc, char *argv[]) {
     // printf("int size %lu\n", sizeof(int));
 
     void* new_data_ptr = my_malloc(100);
-    // printf("Free data 1 pointed at %td\n", new_data_ptr);
 
     void* new_data_ptr2 = my_malloc(1000);
 
-    my_free(new_data_ptr2);
+    void* new_data_ptr3 = my_malloc(1000);
 
     my_free(new_data_ptr);
-	
-	// void* new_data_ptr2 = my_malloc(1000);
- //    printf("Free data 2 pointed at %td\n", new_data_ptr2);
-
-    // block block1 = { 0, NULL, NULL, NULL };
-    // block block2 = { 0, NULL, NULL, NULL };
-    // block block3 = { 0, NULL, NULL, NULL };
+    my_free(new_data_ptr3);
+    my_free(new_data_ptr2);
 
     // block *block1ptr = &block1;
     // block *block2ptr = &block2;
