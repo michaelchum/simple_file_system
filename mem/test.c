@@ -9,11 +9,13 @@ int main(int argc, char *argv[]) {
     // printf("int size %lu\n", sizeof(int));
 
     void* new_data_ptr = my_malloc(100);
-    printf("Free data 1 pointed at %td\n", new_data_ptr);
+    // printf("Free data 1 pointed at %td\n", new_data_ptr);
 
     void* new_data_ptr2 = my_malloc(1000);
-    
+
     my_free(new_data_ptr2);
+
+    my_free(new_data_ptr);
 	
 	// void* new_data_ptr2 = my_malloc(1000);
  //    printf("Free data 2 pointed at %td\n", new_data_ptr2);

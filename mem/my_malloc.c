@@ -7,6 +7,7 @@ int current_policy = FIRST_FIT; // default policy FIRST_FIT
 int bytes_allocated = 0;
 const int buffer_size = 10240000; // 128 KBytes = 1,024,000 bits
 const int block_size = 8*sizeof(block); // size of the header block struct in bit
+void *start;
 block *free_list_head;
 
 // Find a free block according to the currently selected policy
@@ -59,6 +60,8 @@ void my_mallopt(int policy) {
 }
 
 void *my_malloc(int size_byte) {
+    // Store beginning of memory
+    start = sbrk(0);
     // Convert size into bits
     int size_bit = 8*size_byte;
     printf("my_malloc() is trying to allocate %i bit...\n", size_bit);
@@ -200,14 +203,67 @@ void my_free(void *input_ptr) {
     } else if (next_free) {
         printf("Only next block is free, merge!\n");
 
-        // Check if we need to move free_list_head
+        // Calculate the new length
+        int new_length = ptr->length + block_size + physical_next_block->length;
+        ptr->length = new_length;
+        // Point ptr->next to next block's next free block
+        ptr->next_block = physical_next_block->next_block;
 
-    // No neighbors free, need to connect free_list
+        // Find the the prev free_block pointing at ptr->next_block which is always a free_block
+        block *itr = free_list_head;
+        while (itr != NULL) {
+            if (itr->next_block == ptr->next_block) {
+                physical_prev_block = itr;
+                break;
+            }
+            itr = itr->next_block;
+        }
+
+        // Point the prev free block's next to this block
+        physical_prev_block->next_block = ptr;
+
+        // REDIRECTION Make sure all blocks between physical_prev_block to ptr, point to ptr
+        block *redir;
+        // If all prev blocks are data blocks
+        if (free_list_head > ptr) {
+            redir = (block *)start;
+        // If prev free block is existant
+        } else {
+            redir = physical_prev_block;
+        }
+        while (redir < ptr) {
+            redir->next_block = ptr;
+            redir = (void *)(redir->free_data + redir->length);
+        }
+
+        // Check if we need to move free_list_head
+        if (free_list_head > ptr) {
+            free_list_head = ptr;
+        }
+    // No neighbors free, need to connect free_list on both sides
     } else {
         printf("No neighbors free\n");
 
-        // Check if we need to move free_list_head
+        // Find the the prev free_block pointing at ptr->next_block which is always a free_block
+        block *itr = free_list_head;
+        while (itr != NULL) {
+            if (itr->next_block == ptr->next_block) {
+                physical_prev_block = itr;
+                break;
+            }
+            itr = itr->next_block;
+        }
+
+        // If prev free_block not found, this should be the new free_list_head!
+        if (free_list_head > ptr) {
+            free_list_head = ptr;
+        // If prev free_block found
+        } else {
+            // Point the prev free block's to this block
+            physical_prev_block->next_block = ptr;
+        }
     }
+
 
 }
 
