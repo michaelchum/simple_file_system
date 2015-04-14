@@ -6,6 +6,8 @@ typedef struct block {
     struct block *prev_block; // Pointer to the prev free block
     struct block *next_block; // Pointer the next free block
     void *free_data; // Pointer to the start of the free segment
+    int is_free;
+    struct block *next_free;
 } block;
 
 char *my_malloc_error;
@@ -14,3 +16,4 @@ void *my_malloc(int size);
 void my_free(void *ptr);
 void my_mallopt(int policy);
 void my_mallinfo();
+void print_segments();
